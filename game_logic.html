@@ -1,0 +1,92 @@
+/**
+<style>
+  .target { position: absolute; width: 60px; height: 60px; border: 2px solid var(--pink); border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 0 10px var(--pink); cursor: pointer; }
+  .target-center { width: 12px; height: 12px; background: var(--neon); border-radius: 50%; }
+</style>
+
+<script>
+  function initGame() {
+    goToView('view-game');
+    document.getElementById('agent-display').innerText = globalUser;
+    document.getElementById('score-val').innerText = "0";
+    gameScore = 0;
+    
+    const canvas = document.getElementById('game-canvas');
+    canvas.innerHTML = '';
+    
+    // 背景未擊中判定
+    canvas.onclick = (e) => {
+      if(e.target.id === 'game-canvas') {
+        gameScore -= 20;
+        document.getElementById('score-val').innerText = gameScore;
+        beep(150, 0.2); // 低音
+      }
+    };
+
+    spawnTarget();
+    spawnTarget(); // 保持兩個目標
+
+    let timeLeft = 20;
+    timer = setInterval(() => {
+      timeLeft--;
+      document.getElementById('time-val').innerText = timeLeft;
+      if(timeLeft <= 0) finishGame();
+    }, 1000);
+  }
+
+  function spawnTarget() {
+    const canvas = document.getElementById('game-canvas');
+    const t = document.createElement('div');
+    t.className = 'target';
+    t.style.left = Math.random() * (window.innerWidth - 80) + 10 + 'px';
+    t.style.top = Math.random() * (window.innerHeight - 150) + 80 + 'px';
+    
+    const c = document.createElement('div');
+    c.className = 'target-center';
+    t.appendChild(c);
+
+    t.onmousedown = (e) => {
+      e.stopPropagation();
+      const rect = t.getBoundingClientRect();
+      const dx = e.clientX - (rect.left + 30);
+      const dy = e.clientY - (rect.top + 30);
+      const dist = Math.sqrt(dx*dx + dy*dy);
+
+      if(dist < 8) {
+        gameScore += 150; // 中心
+        beep(880, 0.1);
+      } else {
+        gameScore += 100; // 邊緣
+        beep(440, 0.1);
+      }
+      
+      document.getElementById('score-val').innerText = gameScore;
+      canvas.removeChild(t);
+      spawnTarget();
+    };
+    canvas.appendChild(t);
+  }
+
+  function abortGame() {
+    clearInterval(timer);
+    if(confirm("中止訓練？分數不會被記錄。")) {
+      goToView('view-lobby');
+    } else {
+      // 簡單的繼續邏輯（此處暫不重啟計時器，實務上通常中止就直接退出）
+      goToView('view-lobby');
+    }
+  }
+
+  function finishGame() {
+    clearInterval(timer);
+    document.getElementById('game-canvas').innerHTML = '';
+    alert("訓練終止。總分：" + gameScore);
+    
+    // [U] Update: 回傳資料 (使用全域變數 globalUser)
+    google.script.run.withSuccessHandler(msg => {
+      alert(msg);
+      goToView('view-lobby');
+    }).updateScore(globalUser, gameScore);
+  }
+</script>
+*\
